@@ -62,3 +62,76 @@ LEFT JOIN raw.product_category AS f ON f.category_id = c.parent_id;    -- famili
 --       CAST(strftime(fecha, '%Y%m%d') AS INTEGER)
 --   * Si algo puede venir vacío (ej. NPS anónimos, sin cliente), podés agregar
 --     una fila "Desconocido" con clave -1 y usar COALESCE(clave, -1) en los hechos.
+
+-- DIMENSIONES NECESARIAS PARA RESPONDER EL DASHBOARD
+
+-- ---------------------------------------------------------------------
+-- dimensión canales (channel)
+-- ---------------------------------------------------------------------
+
+CREATE TABLE dim_channel (
+    channel_key INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL,
+    code VARCHAR,
+    name VARCHAR,
+);
+INSERT INTO dim_channel
+SELECT 
+    ROW_NUMBER() OVER (ORDER BY channel_id),
+    channel id,
+    code,
+    name
+FROM raw.channel;
+
+-- ---------------------------------------------------------------------
+-- dimension province
+-- ---------------------------------------------------------------------
+
+CREATE TABLE dim_province (
+    province_key INTEGER PRIMARY KEY,
+    province_id  INTEGER NOT NULL,
+    name         VARCHAR,
+    code         VARCHAR
+);
+
+INSERT INTO dim_province
+SELECT
+    ROW_NUMBER() OVER (ORDER BY province_id),
+    province_id,
+    name,
+    code
+FROM raw.province;
+
+
+
+-- ---------------------------------------------------------------------
+-- dimensión date
+-- ---------------------------------------------------------------------
+
+CREATE TABLE dim_date (
+    date_key   INTEGER PRIMARY KEY,
+    fecha      DATE NOT NULL,
+    year       INTEGER,
+    quarter    INTEGER,
+    month      INTEGER,
+    month_name VARCHAR,
+    day_name   VARCHAR
+);
+
+INSERT INTO dim_date
+SELECT
+    CAST(strftime(fecha, '%Y%m%d') AS INTEGER),
+    fecha,
+    year(fecha),
+    quarter(fecha),
+    month(fecha),
+    monthname(fecha),
+    dayname(fecha)
+FROM (
+    SELECT CAST(range AS DATE) AS fecha
+    FROM range(DATE '2024-01-01', DATE '2025-10-01', INTERVAL 1 DAY)
+);
+
+-- ---------------------------------------------------------------------
+-- dimensión customer
+-- ---------------------------------------------------------------------
