@@ -180,6 +180,4 @@ FROM raw.store AS s
 LEFT JOIN raw.address  AS a ON a.address_id  = s.address_id
 LEFT JOIN raw.province AS p ON p.province_id = a.province_id;
 
-INSERT INTO dim_store VALUES (-1, -1, 'Sin tienda (online)', NULL, NULL);
-
 -- DIMENSIONES NO NECESARIAS PARA RESPONDER LA CONSIGNA
