@@ -63,7 +63,7 @@ LEFT JOIN raw.product_category AS f ON f.category_id = c.parent_id;    -- famili
 --   * Si algo puede venir vacío (ej. NPS anónimos, sin cliente), podés agregar
 --     una fila "Desconocido" con clave -1 y usar COALESCE(clave, -1) en los hechos.
 
--- DIMENSIONES NECESARIAS PARA RESPONDER EL DASHBOARD
+-- DIMENSIONES NECESARIAS PARA RESPONDER LA CONSIGNA
 
 -- ---------------------------------------------------------------------
 -- dimensión canales (channel)
@@ -135,3 +135,51 @@ FROM (
 -- ---------------------------------------------------------------------
 -- dimensión customer
 -- ---------------------------------------------------------------------
+CREATE TABLE dim_customer (
+    customer_key INTEGER PRIMARY KEY,
+    customer_id  INTEGER NOT NULL,
+    first_name   VARCHAR,
+    last_name    VARCHAR,
+    email        VARCHAR,
+    phone        VARCHAR,
+    status       VARCHAR,          -- A activo / I dado de baja
+    created_at   TIMESTAMP
+);
+
+INSERT INTO dim_customer
+SELECT
+    ROW_NUMBER() OVER (ORDER BY customer_id),
+    customer_id,
+    first_name,
+    last_name,
+    email,
+    phone,
+    status,
+    created_at
+FROM raw.customer;
+
+-- ---------------------------------------------------------------------
+-- dim_store
+-- ---------------------------------------------------------------------
+CREATE TABLE dim_store (
+    store_key INTEGER PRIMARY KEY,
+    store_id  INTEGER NOT NULL,
+    name      VARCHAR,
+    city      VARCHAR,
+    province  VARCHAR
+);
+
+INSERT INTO dim_store
+SELECT
+    ROW_NUMBER() OVER (ORDER BY s.store_id),
+    s.store_id,
+    s.name,
+    a.city,
+    p.name
+FROM raw.store AS s
+LEFT JOIN raw.address  AS a ON a.address_id  = s.address_id
+LEFT JOIN raw.province AS p ON p.province_id = a.province_id;
+
+INSERT INTO dim_store VALUES (-1, -1, 'Sin tienda (online)', NULL, NULL);
+
+-- DIMENSIONES NO NECESARIAS PARA RESPONDER LA CONSIGNA
