@@ -46,7 +46,6 @@ FROM raw.product AS p
 LEFT JOIN raw.product_category AS c ON c.category_id = p.category_id   -- categoría
 LEFT JOIN raw.product_category AS f ON f.category_id = c.parent_id;    -- familia (categoría padre)
 
-
 -- ---------------------------------------------------------------------
 -- TU TURNO: el resto de las dimensiones
 -- ---------------------------------------------------------------------
@@ -62,6 +61,8 @@ LEFT JOIN raw.product_category AS f ON f.category_id = c.parent_id;    -- famili
 --       CAST(strftime(fecha, '%Y%m%d') AS INTEGER)
 --   * Si algo puede venir vacío (ej. NPS anónimos, sin cliente), podés agregar
 --     una fila "Desconocido" con clave -1 y usar COALESCE(clave, -1) en los hechos.
+
+-- =====================================================================
 
 -- DIMENSIONES NECESARIAS PARA RESPONDER LAS PREGUNTAS
 
@@ -102,12 +103,10 @@ SELECT
     code
 FROM raw.province;
 
-
-
-
 -- ---------------------------------------------------------------------
 -- dimensión customer
 -- ---------------------------------------------------------------------
+
 CREATE TABLE dim_customer (
     customer_key INTEGER PRIMARY KEY,
     customer_id  INTEGER NOT NULL,
@@ -134,6 +133,7 @@ FROM raw.customer;
 -- ---------------------------------------------------------------------
 -- dim_store
 -- ---------------------------------------------------------------------
+
 CREATE TABLE dim_store (
     store_key INTEGER PRIMARY KEY,
     store_id  INTEGER NOT NULL,
@@ -200,10 +200,9 @@ SELECT
     method
 FROM (SELECT DISTINCT method FROM raw.payment);
 
--- -------------------------------------------------------------------
+-- ---------------------------------------------------------------------
 -- dim_source
 -- ---------------------------------------------------------------------
-
 
 CREATE TABLE dim_source (
     source_key INTEGER PRIMARY KEY,
@@ -215,7 +214,6 @@ SELECT
     ROW_NUMBER() OVER (ORDER BY source) AS source_key,
     source
 FROM (SELECT DISTINCT source FROM raw.web_session);
-
 
 -- --------------------------------------------------------------------
 -- dim_divice
@@ -230,4 +228,6 @@ SELECT
     ROW_NUMBER() OVER (ORDER BY device) AS device_key,
     device
 FROM (SELECT DISTINCT device FROM raw.web_session);
+
+
 
