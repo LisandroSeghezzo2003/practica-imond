@@ -217,4 +217,17 @@ SELECT
 FROM (SELECT DISTINCT source FROM raw.web_session);
 
 
+-- --------------------------------------------------------------------
+-- dim_divice
+-- ---------------------------------------------------------------------
+CREATE TABLE dim_device (
+    device_key INTEGER PRIMARY KEY,
+    device VARCHAR NOT NULL
+);
+
+INSERT INTO dim_device
+SELECT
+    ROW_NUMBER() OVER (ORDER BY device) AS device_key,
+    device
+FROM (SELECT DISTINCT device FROM raw.web_session);
 
