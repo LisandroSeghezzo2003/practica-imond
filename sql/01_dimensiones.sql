@@ -183,5 +183,17 @@ LEFT JOIN raw.province AS p ON p.province_id = a.province_id;
 -- DIMENSIONES NO NECESARIAS PARA RESPONDER LA CONSIGNA
 
 -- ---------------------------------------------------------------------
--- dim_method_payment (raw.method_payment)
+-- dim_payment_method (raw.payment.method)
 -- ---------------------------------------------------------------------
+
+CREATE TABLE dim_payment_method (
+    payment_method_key INTEGER PRIMARY KEY,
+    method VARCHAR NOT NULL
+);
+
+INSERT INTO dim_payment_method
+SELECT
+    ROW_NUMBER() OVER (ORDER BY method) AS payment_method_key,
+    method
+FROM (SELECT DISTINCT method FROM raw.payment);
+
