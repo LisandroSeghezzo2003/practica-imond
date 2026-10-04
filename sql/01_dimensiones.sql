@@ -77,8 +77,8 @@ CREATE TABLE dim_channel (
 );
 INSERT INTO dim_channel
 SELECT 
-    ROW_NUMBER() OVER (ORDER BY channel_id),
-    channel id,
+    ROW_NUMBER() OVER (ORDER BY channel_id) AS channel_key,
+    channel_id,
     code,
     name
 FROM raw.channel;
@@ -96,7 +96,7 @@ CREATE TABLE dim_province (
 
 INSERT INTO dim_province
 SELECT
-    ROW_NUMBER() OVER (ORDER BY province_id),
+    ROW_NUMBER() OVER (ORDER BY province_id) AS province_key,
     province_id,
     name,
     code
@@ -148,7 +148,7 @@ CREATE TABLE dim_customer (
 
 INSERT INTO dim_customer
 SELECT
-    ROW_NUMBER() OVER (ORDER BY customer_id),
+    ROW_NUMBER() OVER (ORDER BY customer_id) AS customer_key,
     customer_id,
     first_name,
     last_name,
@@ -171,7 +171,7 @@ CREATE TABLE dim_store (
 
 INSERT INTO dim_store
 SELECT
-    ROW_NUMBER() OVER (ORDER BY s.store_id),
+    ROW_NUMBER() OVER (ORDER BY s.store_id) AS store_key,
     s.store_id,
     s.name,
     a.city,
@@ -181,3 +181,7 @@ LEFT JOIN raw.address  AS a ON a.address_id  = s.address_id
 LEFT JOIN raw.province AS p ON p.province_id = a.province_id;
 
 -- DIMENSIONES NO NECESARIAS PARA RESPONDER LA CONSIGNA
+
+-- ---------------------------------------------------------------------
+-- dim_method_payment (raw.method_payment)
+-- ---------------------------------------------------------------------
