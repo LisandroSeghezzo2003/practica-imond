@@ -63,7 +63,7 @@ LEFT JOIN raw.product_category AS f ON f.category_id = c.parent_id;    -- famili
 --   * Si algo puede venir vacío (ej. NPS anónimos, sin cliente), podés agregar
 --     una fila "Desconocido" con clave -1 y usar COALESCE(clave, -1) en los hechos.
 
--- DIMENSIONES NECESARIAS PARA RESPONDER LA CONSIGNA
+-- DIMENSIONES NECESARIAS PARA RESPONDER LAS PREGUNTAS
 
 -- ---------------------------------------------------------------------
 -- dimensión canales (channel)
@@ -104,33 +104,6 @@ FROM raw.province;
 
 
 
--- ---------------------------------------------------------------------
--- dimensión date
--- ---------------------------------------------------------------------
-
-CREATE TABLE dim_date (
-    date_key   INTEGER PRIMARY KEY,
-    fecha      DATE NOT NULL,
-    year       INTEGER,
-    quarter    INTEGER,
-    month      INTEGER,
-    month_name VARCHAR,
-    day_name   VARCHAR
-);
-
-INSERT INTO dim_date
-SELECT
-    CAST(strftime(fecha, '%Y%m%d') AS INTEGER),
-    fecha,
-    year(fecha),
-    quarter(fecha),
-    month(fecha),
-    monthname(fecha),
-    dayname(fecha)
-FROM (
-    SELECT CAST(range AS DATE) AS fecha
-    FROM range(DATE '2024-01-01', DATE '2025-10-01', INTERVAL 1 DAY)
-);
 
 -- ---------------------------------------------------------------------
 -- dimensión customer
@@ -142,7 +115,7 @@ CREATE TABLE dim_customer (
     last_name    VARCHAR,
     email        VARCHAR,
     phone        VARCHAR,
-    status       VARCHAR,          -- A activo / I dado de baja
+    status       VARCHAR,
     created_at   TIMESTAMP
 );
 
@@ -180,7 +153,37 @@ FROM raw.store AS s
 LEFT JOIN raw.address  AS a ON a.address_id  = s.address_id
 LEFT JOIN raw.province AS p ON p.province_id = a.province_id;
 
--- DIMENSIONES NO NECESARIAS PARA RESPONDER LA CONSIGNA
+-- ---------------------------------------------------------------------
+-- dimensión date
+-- ---------------------------------------------------------------------
+
+CREATE TABLE dim_date (
+    date_key   INTEGER PRIMARY KEY,
+    fecha      DATE NOT NULL,
+    year       INTEGER,
+    quarter    INTEGER,
+    month      INTEGER,
+    month_name VARCHAR,
+    day_name   VARCHAR
+);
+
+INSERT INTO dim_date
+SELECT
+    CAST(strftime(fecha, '%Y%m%d') AS INTEGER),
+    fecha,
+    year(fecha),
+    quarter(fecha),
+    month(fecha),
+    monthname(fecha),
+    dayname(fecha)
+FROM (
+    SELECT CAST(range AS DATE) AS fecha
+    FROM range(DATE '2024-01-01', DATE '2025-10-01', INTERVAL 1 DAY)
+);
+
+-- =====================================================================
+
+-- DIMENSIONES NO NECESARIAS PARA RESPONDER LAS PREGUNTAS
 
 -- ---------------------------------------------------------------------
 -- dim_payment_method (raw.payment.method)
@@ -212,3 +215,6 @@ SELECT
     ROW_NUMBER() OVER (ORDER BY source) AS source_key,
     source
 FROM (SELECT DISTINCT source FROM raw.web_session);
+
+
+
