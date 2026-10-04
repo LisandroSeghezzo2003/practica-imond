@@ -197,3 +197,18 @@ SELECT
     method
 FROM (SELECT DISTINCT method FROM raw.payment);
 
+-- -------------------------------------------------------------------
+-- dim_source
+-- ---------------------------------------------------------------------
+
+
+CREATE TABLE dim_source (
+    source_key INTEGER PRIMARY KEY,
+    source VARCHAR NOT NULL
+);
+
+INSERT INTO dim_source
+SELECT
+    ROW_NUMBER() OVER (ORDER BY source) AS source_key,
+    source
+FROM (SELECT DISTINCT source FROM raw.web_session);
