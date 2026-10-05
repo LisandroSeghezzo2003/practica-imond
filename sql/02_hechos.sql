@@ -190,3 +190,32 @@ JOIN fact_orders AS fo ON fo.order_id = p.order_id
 LEFT JOIN dim_date AS dd ON dd.fecha = CAST(p.paid_at AS DATE)
 LEFT JOIN dim_payment_method AS dm ON dm.method = p.method;
 
+-- ---------------------------------------------------------------------
+-- fact_shipment
+-- Grano:  fila por envio de correo argentino (raw.shipment)
+-- ---------------------------------------------------------------------
+CREATE TABLE fact_shipment (
+    shipment_id BIGINT PRIMARY KEY, 
+    order_id  BIGINT NOT NULL REFERENCES fact_orders (order_id),
+    shipped_date_key INTEGER REFERENCES dim_date (date_key),
+    delivered_date_key INTEGER REFERENCES dim_date (date_key),
+    carrier VARCHAR,
+    status VARCHAR,
+    days_to_deliver INTEGER
+);
+  
+
+INSERT INTO fact_shipment
+SELECT
+    s.shipment_id,
+    s.order_id,
+    d1.date_key,
+    d2.date_key,
+    s.carrier,
+    s.status,
+    date_diff('day', CAST(s.shipped_at AS DATE), CAST(s.delivered_at AS DATE))
+FROM raw.shipment AS s
+JOIN fact_orders AS fo ON fo.order_id = s.order_id
+LEFT JOIN dim_date AS d1 ON d1.fecha = CAST(s.shipped_at AS DATE)
+LEFT JOIN dim_date AS d2 ON d2.fecha = CAST(s.delivered_at AS DATE); 
+
