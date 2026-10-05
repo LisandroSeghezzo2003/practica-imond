@@ -15,10 +15,7 @@ SELECT product_key, name, category, family, list_price
 FROM dim_product
 ORDER BY product_key;
 
-
--- TU TURNO: agregá acá tus consultas.
-
--- ==========================================================
+-- =====================================================================
 
 -- Revisar la dimension canal (dim_channel)
 SELECT channel_key, channel_id, code, name
@@ -39,7 +36,7 @@ LIMIT 10;
 
 SELECT COUNT(*) AS filas FROM dim_customer; --> 3471 filas
 
--- nullos
+-- nulos
 SELECT
 -- cantidad de filas totales menos cantidad de filas tienen datos en una columna en especifico ( nos da los null)
     COUNT(*) - COUNT(customer_key) AS sin_key,
@@ -66,7 +63,7 @@ LIMIT 10;
 
 SELECT COUNT(*) AS filas FROM dim_date;
 
--- ==========================================================
+-- =====================================================================
 
 -- CONTROL DE DIMENSIONES NO NECESARIAS:
 
@@ -88,6 +85,10 @@ SELECT device_key, device
 FROM dim_device
 ORDER BY device_key;
 
+-- =====================================================================
+
+-- Revisar hechos
+
 -- Filas: hecho y origen
 
 SELECT 'orders' AS hecho, (SELECT COUNT(*) FROM fact_orders)       - (SELECT COUNT(*) FROM raw.sales_order)      AS diferencia
@@ -98,5 +99,5 @@ UNION ALL SELECT 'payment',  (SELECT COUNT(*) FROM fact_payment)      - (SELECT 
 UNION ALL SELECT 'shipment', (SELECT COUNT(*) FROM fact_shipment)     - (SELECT COUNT(*) FROM raw.shipment);
 
 -- Importes: hecho  y origen
-SELECT (SELECT SUM(total_amount) FROM fact_orders) - (SELECT SUM(total_amount) FROM raw.sales_order)     AS diferencia_pedidos;
-SELECT (SELECT SUM(line_total)   FROM fact_sales)  - (SELECT SUM(line_total)   FROM raw.sales_order_item) AS diferencia_lineas;
+SELECT (SELECT SUM(total_amount) FROM fact_orders) - (SELECT SUM(total_amount) FROM raw.sales_order)     AS diferencia_pedidos
+UNION ALL SELECT (SELECT SUM(line_total)   FROM fact_sales)  - (SELECT SUM(line_total)   FROM raw.sales_order_item) AS diferencia_lineas;
