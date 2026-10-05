@@ -134,3 +134,32 @@ JOIN dim_date AS dd ON dd.fecha = CAST(w.started_at AS DATE)
 LEFT JOIN dim_customer AS dc  ON dc.customer_id = w.customer_id
 LEFT JOIN dim_source   AS dsr ON dsr.source     = w.source
 LEFT JOIN dim_device   AS ddv ON ddv.device     = w.device;
+
+-- ---------------------------------------------------------------------
+-- fact_nps
+-- Grano: una fila por respuesta NPS (raw.nps_response)
+-- ---------------------------------------------------------------------
+
+
+CREATE TABLE fact_nps (
+    nps_id BIGINT PRIMARY KEY,
+    date_key INTEGER NOT NULL REFERENCES dim_date (date_key),
+    customer_key INTEGER REFERENCES dim_customer (customer_key),
+    channel_key INTEGER NOT NULL REFERENCES dim_channel (channel_key),
+    score SMALLINT
+);
+
+INSERT INTO fact_nps
+SELECT
+    n.nps_id,
+    dd.date_key,
+    dc.customer_key,
+    dch.channel_key,
+    n.score
+FROM raw.nps_response AS n
+JOIN dim_date AS dd ON dd.fecha = CAST(n.responded_at AS DATE)
+JOIN dim_channel AS dch ON dch.channel_id = n.channel_id
+LEFT JOIN dim_customer AS dc ON dc.customer_id = n.customer_id;
+
+
+
