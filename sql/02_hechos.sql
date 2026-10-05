@@ -24,13 +24,11 @@
 -- DuckDB rechaza la carga y run_sql.py te muestra el error.
 -- =====================================================================
 
-
--- TU TURNO: creá acá las tablas de hechos.
-
 -- ---------------------------------------------------------------------
 -- fact_orders
 -- Grano: una fila por pedido (raw.sales_order)
 -- ---------------------------------------------------------------------
+
 CREATE TABLE fact_orders (
     order_id BIGINT PRIMARY KEY,
     date_key INTEGER NOT NULL REFERENCES dim_date (date_key),
@@ -45,8 +43,6 @@ CREATE TABLE fact_orders (
     shipping_fee DECIMAL(12, 2),
     total_amount DECIMAL(12, 2)
 );
-
-
 
 INSERT INTO fact_orders
 SELECT
@@ -70,10 +66,11 @@ LEFT JOIN dim_store AS ds ON ds.store_id = o.store_id
 JOIN raw.address  AS a   ON a.address_id = o.shipping_address_id
 JOIN dim_province AS dp  ON dp.province_id = a.province_id;
 
--- ---------------------------------------------------------------------
+-- -----------------------------------------------------------------------
 -- fact_sales
 -- Grano: una fila por producto dentro de un pedido (raw.sales_order_item)
--- ------------------------------------------------------------------------
+-- -----------------------------------------------------------------------
+
 CREATE TABLE fact_sales (
     order_item_id  BIGINT PRIMARY KEY,
     order_id BIGINT NOT NULL REFERENCES fact_orders (order_id),
@@ -105,11 +102,10 @@ FROM raw.sales_order_item AS i
 JOIN fact_orders AS fo ON fo.order_id = i.order_id
 JOIN dim_product AS dp ON dp.product_id = i.product_id;
 
-
--- ---------------------------------------------------------------------
+-- -------------------------------------------------------------------
 -- fact_web_session
--- grano: una fila por sesion  web iniciada
--- ---------------------------------------------------------------------
+-- Grano: una fila por sesion  web iniciada
+-- -------------------------------------------------------------------
 
 CREATE TABLE fact_web_session (
     session_id BIGINT PRIMARY KEY,
@@ -120,6 +116,7 @@ CREATE TABLE fact_web_session (
     started_at TIMESTAMP,
     ended_at TIMESTAMP
 );
+
 INSERT INTO fact_web_session
 SELECT
     w.session_id,
@@ -135,11 +132,10 @@ LEFT JOIN dim_customer AS dc  ON dc.customer_id = w.customer_id
 LEFT JOIN dim_source   AS dsr ON dsr.source     = w.source
 LEFT JOIN dim_device   AS ddv ON ddv.device     = w.device;
 
--- ---------------------------------------------------------------------
+-- -------------------------------------------------------------------
 -- fact_nps
 -- Grano: una fila por respuesta NPS (raw.nps_response)
--- ---------------------------------------------------------------------
-
+-- -------------------------------------------------------------------
 
 CREATE TABLE fact_nps (
     nps_id BIGINT PRIMARY KEY,
@@ -190,10 +186,10 @@ JOIN fact_orders AS fo ON fo.order_id = p.order_id
 LEFT JOIN dim_date AS dd ON dd.fecha = CAST(p.paid_at AS DATE)
 LEFT JOIN dim_payment_method AS dm ON dm.method = p.method;
 
--- ---------------------------------------------------------------------
+-- -------------------------------------------------------------------
 -- fact_shipment
--- Grano:  fila por envio de correo argentino (raw.shipment)
--- ---------------------------------------------------------------------
+-- Grano: fila por envio de correo argentino (raw.shipment)
+-- -------------------------------------------------------------------
 CREATE TABLE fact_shipment (
     shipment_id BIGINT PRIMARY KEY, 
     order_id  BIGINT NOT NULL REFERENCES fact_orders (order_id),
