@@ -69,3 +69,40 @@ JOIN dim_channel  AS dch ON dch.channel_id = o.channel_id
 LEFT JOIN dim_store AS ds ON ds.store_id = o.store_id
 JOIN raw.address  AS a   ON a.address_id = o.shipping_address_id
 JOIN dim_province AS dp  ON dp.province_id = a.province_id;
+
+-- ---------------------------------------------------------------------
+-- fact_sales
+-- Grano: una fila por producto dentro de un pedido (raw.sales_order_item)
+-- ------------------------------------------------------------------------
+CREATE TABLE fact_sales (
+    order_item_id  BIGINT PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES fact_orders (order_id),
+    date_key INTEGER NOT NULL REFERENCES dim_date (date_key),
+    product_key INTEGER NOT NULL REFERENCES dim_product (product_key),
+    channel_key INTEGER NOT NULL REFERENCES dim_channel (channel_key),
+    province_key INTEGER NOT NULL REFERENCES dim_province (province_key),
+    is_sale INTEGER,
+    quantity INTEGER,
+    unit_price DECIMAL(12, 2),
+    discount_amount DECIMAL(12, 2),
+    line_total DECIMAL(12, 2) 
+);  
+
+INSERT INTO fact_sales
+SELECT
+    i.order_item_id,
+    i.order_id,
+    fo.date_key,
+    dp.product_key,
+    fo.channel_key,
+    fo.province_key,
+    fo.is_sale,
+    i.quantity,
+    i.unit_price,
+    i.discount_amount,
+    i.line_total
+FROM raw.sales_order_item AS i
+JOIN fact_orders AS fo ON fo.order_id = i.order_id
+JOIN dim_product AS dp ON dp.product_id = i.product_id;
+
+
