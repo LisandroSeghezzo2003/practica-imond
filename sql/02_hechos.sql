@@ -161,5 +161,32 @@ JOIN dim_date AS dd ON dd.fecha = CAST(n.responded_at AS DATE)
 JOIN dim_channel AS dch ON dch.channel_id = n.channel_id
 LEFT JOIN dim_customer AS dc ON dc.customer_id = n.customer_id;
 
+-- -------------------------------------------------------------------
+-- fact_payment
+-- Grano: una fila por pago (raw.payment). Cada pedido tiene un pago
+-- -------------------------------------------------------------------
 
+CREATE TABLE fact_payment (
+    payment_id BIGINT PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES fact_orders (order_id),
+    date_key INTEGER REFERENCES dim_date (date_key),
+    payment_method_key INTEGER REFERENCES dim_payment_method (payment_method_key),
+    status VARCHAR,
+    amount DECIMAL(12, 2),
+    paid_at TIMESTAMP
+);
+
+INSERT INTO fact_payment
+SELECT
+    p.payment_id,
+    p.order_id,
+    dd.date_key,
+    dm.payment_method_key,
+    p.status,
+    p.amount,
+    p.paid_at
+FROM raw.payment AS p
+JOIN fact_orders AS fo ON fo.order_id = p.order_id
+LEFT JOIN dim_date AS dd ON dd.fecha = CAST(p.paid_at AS DATE)
+LEFT JOIN dim_payment_method AS dm ON dm.method = p.method;
 
