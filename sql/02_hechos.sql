@@ -106,3 +106,31 @@ JOIN fact_orders AS fo ON fo.order_id = i.order_id
 JOIN dim_product AS dp ON dp.product_id = i.product_id;
 
 
+-- ---------------------------------------------------------------------
+-- fact_web_session
+-- grano: una fila por sesion  web iniciada
+-- ---------------------------------------------------------------------
+
+CREATE TABLE fact_web_session (
+    session_id BIGINT PRIMARY KEY,
+    date_key INTEGER NOT NULL REFERENCES dim_date (date_key),
+    customer_key INTEGER REFERENCES dim_customer (customer_key),
+    source_key INTEGER REFERENCES dim_source (source_key),
+    device_key INTEGER REFERENCES dim_device (device_key),
+    started_at TIMESTAMP,
+    ended_at TIMESTAMP
+);
+INSERT INTO fact_web_session
+SELECT
+    w.session_id,
+    dd.date_key,
+    dc.customer_key,
+    dsr.source_key,
+    ddv.device_key,
+    w.started_at,
+    w.ended_at
+FROM raw.web_session AS w
+JOIN dim_date AS dd ON dd.fecha = CAST(w.started_at AS DATE)
+LEFT JOIN dim_customer AS dc  ON dc.customer_id = w.customer_id
+LEFT JOIN dim_source   AS dsr ON dsr.source     = w.source
+LEFT JOIN dim_device   AS ddv ON ddv.device     = w.device;
