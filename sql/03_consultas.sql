@@ -101,3 +101,62 @@ UNION ALL SELECT 'shipment', (SELECT COUNT(*) FROM fact_shipment)     - (SELECT 
 -- Importes: hecho  y origen
 SELECT (SELECT SUM(total_amount) FROM fact_orders) - (SELECT SUM(total_amount) FROM raw.sales_order)     AS diferencia_pedidos
 UNION ALL SELECT (SELECT SUM(line_total)   FROM fact_sales)  - (SELECT SUM(line_total)   FROM raw.sales_order_item) AS diferencia_lineas;
+
+-- =====================================================================
+
+-- 1- $M Total Ventas: SUM(total_amount), status PAID/FULFILLED, filtrable por canal y período (order_date)
+SELECT SUM(f.total_amount) AS total_ventas
+FROM fact_orders AS f
+JOIN dim_date AS d ON d.date_key = f.date_key
+JOIN dim_channel AS c ON c.channel_key = f.channel_key
+WHERE f.status IN ('PAID', 'FULFILLED')
+  AND d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
+
+-- 2- $K Ticket Promedio: SUM(total_amount) / COUNT(*) (mismo filtro que Ventas)
+SELECT SUM(f.total_amount) / COUNT(*) AS ticket_promedio
+FROM fact_orders AS f
+JOIN dim_date AS d ON d.date_key = f.date_key
+JOIN dim_channel AS c ON c.channel_key = f.channel_key
+WHERE f.status IN ('PAID', 'FULFILLED')
+  AND d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
+;
+
+-- 3- nK Usuarios Activos: clientes distintos con sesión web en el período, las sesiones anónimas se cuentan por session_id
+SELECT
+    COUNT(DISTINCT w.customer_key) +
+    COUNT(DISTINCT CASE WHEN w.customer_key IS NULL THEN w.session_id END) AS usuarios_activos
+FROM fact_web_session AS w
+JOIN dim_date AS d ON d.date_key = w.date_key
+WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
+
+
+-- 4- NPS: ((%9-10) - (%0-6)) * 100, por período y canal
+SELECT ROUND(100.0 *( SUM(CASE WHEN n.score >= 9 THEN 1 ELSE 0 END) - SUM(CASE WHEN n.score <= 6 THEN 1 ELSE 0 END)) / COUNT(*), 1) AS nps
+FROM fact_nps AS n
+JOIN dim_date AS d ON d.date_key = n.date_key
+JOIN dim_channel AS c ON c.channel_key = n.channel_key
+WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
+;
+
+-- 5- Ventas por provincia: total_amount agrupado por la provincia de shipping_address_id -> address.province_id
+SELECT p.name AS provincia, SUM(f.total_amount) AS ventas
+FROM fact_orders AS f
+JOIN dim_province AS p ON p.province_key = f.province_key
+WHERE f.status IN ('PAID', 'FULFILLED')
+GROUP BY p.name
+ORDER BY ventas DESC;
+
+
+-- 6- Ranking de ventas por producto (mensual): line_total por producto y mes
+SELECT d.year, d.month, p.name AS producto,
+       SUM(f.line_total) AS ventas,
+       RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
+FROM fact_sales AS f
+JOIN dim_date AS d ON d.date_key    = f.date_key
+JOIN dim_product AS p ON p.product_key = f.product_key
+WHERE f.is_sale = 1
+GROUP BY d.year, d.month, p.name
+ORDER BY d.year, d.month, ranking;
+
+
+
