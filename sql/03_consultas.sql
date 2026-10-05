@@ -87,3 +87,16 @@ ORDER BY source_key;
 SELECT device_key, device
 FROM dim_device
 ORDER BY device_key;
+
+-- Filas: hecho y origen
+
+SELECT 'orders' AS hecho, (SELECT COUNT(*) FROM fact_orders)       - (SELECT COUNT(*) FROM raw.sales_order)      AS diferencia
+UNION ALL SELECT 'sales',    (SELECT COUNT(*) FROM fact_sales)        - (SELECT COUNT(*) FROM raw.sales_order_item)
+UNION ALL SELECT 'sessions', (SELECT COUNT(*) FROM fact_web_session)  - (SELECT COUNT(*) FROM raw.web_session)
+UNION ALL SELECT 'nps',      (SELECT COUNT(*) FROM fact_nps)          - (SELECT COUNT(*) FROM raw.nps_response)
+UNION ALL SELECT 'payment',  (SELECT COUNT(*) FROM fact_payment)      - (SELECT COUNT(*) FROM raw.payment)
+UNION ALL SELECT 'shipment', (SELECT COUNT(*) FROM fact_shipment)     - (SELECT COUNT(*) FROM raw.shipment);
+
+-- Importes: hecho  y origen
+SELECT (SELECT SUM(total_amount) FROM fact_orders) - (SELECT SUM(total_amount) FROM raw.sales_order)     AS diferencia_pedidos;
+SELECT (SELECT SUM(line_total)   FROM fact_sales)  - (SELECT SUM(line_total)   FROM raw.sales_order_item) AS diferencia_lineas;
