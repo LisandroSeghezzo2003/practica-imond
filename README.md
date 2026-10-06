@@ -5,7 +5,7 @@ Trabajo práctico de **Introducción al Marketing Online y los Negocios Digitale
 Se arma un data warehouse con modelo estrella (Kimball) a partir de los datos de ventas de EcoBottle AR (online + tiendas físicas), para alimentar un dashboard con los KPIs: Ventas, Usuarios Activos, Ticket Promedio, NPS, Ventas por Provincia y Ranking Mensual por Producto.
 
 - **Autor:** Lisandro Seghezzo
-- **Dashboard:** `<pegar enlace o ver capturas en /docs>`
+- **Dashboard:**
 
 ---
 
@@ -32,7 +32,7 @@ Requisitos: Python 3.9 o superior y Git.
 git clone https://github.com/LisandroSeghezzo2003/practica-imond.git
 cd practica-imond
 
-# 2. Crear y activar el entorno virtual (Windows PowerShell)
+# 2. Crear y activar el entorno virtual
 python -m venv .venv
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .venv\Scripts\Activate.ps1
