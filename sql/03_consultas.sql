@@ -130,22 +130,17 @@ JOIN dim_date AS d ON d.date_key = w.date_key
 WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
 
 
--- 4- NPS: ((%9-10) - (%0-6)) * 100, por período y canal
-SELECT ROUND(100.0 *( SUM(CASE WHEN n.score >= 9 THEN 1 ELSE 0 END) - SUM(CASE WHEN n.score <= 6 THEN 1 ELSE 0 END)) / COUNT(*), 1) AS nps
+-- NPS: ((%9-10) - (%0-6)) * 100, por período y canal
+-- Para filtrar por canal, descomentá la línea AND c.code = ...
+SELECT ROUND(100.0 *
+    ( SUM(CASE WHEN n.score >= 9 THEN 1 ELSE 0 END)
+    - SUM(CASE WHEN n.score <= 6 THEN 1 ELSE 0 END)) / COUNT(*), 1) AS nps
 FROM fact_nps AS n
-JOIN dim_date AS d ON d.date_key = n.date_key
+JOIN dim_date    AS d ON d.date_key    = n.date_key
 JOIN dim_channel AS c ON c.channel_key = n.channel_key
 WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
+  -- AND c.code = 'ONLINE'
 ;
-
--- 5- Ventas por provincia: total_amount agrupado por la provincia de shipping_address_id -> address.province_id
-SELECT p.name AS provincia, SUM(f.total_amount) AS ventas
-FROM fact_orders AS f
-JOIN dim_province AS p ON p.province_key = f.province_key
-WHERE f.status IN ('PAID', 'FULFILLED')
-GROUP BY p.name
-ORDER BY ventas DESC;
-
 
 -- 6- Ranking de ventas por producto (mensual): line_total por producto y mes
 SELECT d.year, d.month, p.name AS producto,
