@@ -67,7 +67,6 @@ SELECT COUNT(*) AS filas FROM dim_date;
 
 -- CONTROL DE DIMENSIONES NO NECESARIAS:
 
-
 -- Revisar la dimensión metodo de pago
 SELECT payment_method_key, method
 FROM dim_payment_method
@@ -118,8 +117,7 @@ FROM fact_orders AS f
 JOIN dim_date AS d ON d.date_key = f.date_key
 JOIN dim_channel AS c ON c.channel_key = f.channel_key
 WHERE f.status IN ('PAID', 'FULFILLED')
-  AND d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
-;
+  AND d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
 
 -- 3- nK Usuarios Activos: clientes distintos con sesión web en el período, las sesiones anónimas se cuentan por session_id
 SELECT
@@ -129,18 +127,16 @@ FROM fact_web_session AS w
 JOIN dim_date AS d ON d.date_key = w.date_key
 WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
 
-
--- NPS: ((%9-10) - (%0-6)) * 100, por período y canal
+-- 4- NPS: ((%9-10) - (%0-6)) * 100, por período y canal
 -- Para filtrar por canal, descomentá la línea AND c.code = ...
 SELECT ROUND(100.0 *
     ( SUM(CASE WHEN n.score >= 9 THEN 1 ELSE 0 END)
     - SUM(CASE WHEN n.score <= 6 THEN 1 ELSE 0 END)) / COUNT(*), 1) AS nps
 FROM fact_nps AS n
-JOIN dim_date    AS d ON d.date_key    = n.date_key
+JOIN dim_date AS d ON d.date_key    = n.date_key
 JOIN dim_channel AS c ON c.channel_key = n.channel_key
-WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
-  -- AND c.code = 'ONLINE'
-;
+WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30' AND c.code = 'ONLINE';
+
 
 -- 6- Ranking de ventas por producto (mensual): line_total por producto y mes
 SELECT d.year, d.month, p.name AS producto,
@@ -152,6 +148,3 @@ JOIN dim_product AS p ON p.product_key = f.product_key
 WHERE f.is_sale = 1
 GROUP BY d.year, d.month, p.name
 ORDER BY d.year, d.month, ranking;
-
-
-
