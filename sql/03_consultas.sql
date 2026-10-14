@@ -103,55 +103,43 @@ UNION ALL SELECT (SELECT SUM(line_total)   FROM fact_sales)  - (SELECT SUM(line_
 
 -- =====================================================================
 
--- 1- $M Total Ventas: SUM(total_amount), status PAID/FULFILLED, filtrable por canal y período (order_date)
+-- 1- $M Total Ventas
 SELECT SUM(f.total_amount) AS total_ventas
 FROM fact_orders AS f
-JOIN dim_date AS d ON d.date_key = f.date_key
-JOIN dim_channel AS c ON c.channel_key = f.channel_key
-WHERE f.status IN ('PAID', 'FULFILLED')
-  AND d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
+WHERE f.status IN ('PAID', 'FULFILLED');
 
--- 2- $K Ticket Promedio: SUM(total_amount) / COUNT(*) (mismo filtro que Ventas)
-SELECT SUM(f.total_amount) / COUNT(*) AS ticket_promedio
-FROM fact_orders AS f
-JOIN dim_date AS d ON d.date_key = f.date_key
-JOIN dim_channel AS c ON c.channel_key = f.channel_key
-WHERE f.status IN ('PAID', 'FULFILLED')
-  AND d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
+-- 2- $K Ticket Promedio
+SELECT SUM(total_amount) / COUNT(*) AS ticket_promedio
+FROM fact_orders
+WHERE status IN ('PAID', 'FULFILLED');
 
--- 3- nK Usuarios Activos: clientes distintos con sesión web en el período, las sesiones anónimas se cuentan por session_id
+-- 3- nK Usuarios Activos
 SELECT
-    COUNT(DISTINCT w.customer_key) +
-    COUNT(DISTINCT CASE WHEN w.customer_key IS NULL THEN w.session_id END) AS usuarios_activos
-FROM fact_web_session AS w
-JOIN dim_date AS d ON d.date_key = w.date_key
-WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30';
+    COUNT(DISTINCT customer_key)
+  + COUNT(DISTINCT CASE WHEN customer_key IS NULL THEN session_id END) AS usuarios_activos
+FROM fact_web_session;
 
--- 4- NPS: ((%9-10) - (%0-6)) * 100, por período y canal
--- Para filtrar por canal, descomentá la línea AND c.code = ...
-SELECT ROUND(100.0 *
-    ( SUM(CASE WHEN n.score >= 9 THEN 1 ELSE 0 END)
-    - SUM(CASE WHEN n.score <= 6 THEN 1 ELSE 0 END)) / COUNT(*), 1) AS nps
-FROM fact_nps AS n
-JOIN dim_date AS d ON d.date_key    = n.date_key
-JOIN dim_channel AS c ON c.channel_key = n.channel_key
-WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30' AND c.code = 'ONLINE';
+-- 4- NPS
+SELECT ROUND(100.0 * (
+         SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
+       - SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)
+       ) / COUNT(*), 1) AS nps
+FROM fact_nps;
 
--- 5- Ventas por Provincia: SUM(line_total) por provincia y mes, filtrable por canal y período
-SELECT d.year, d.month, p.name AS provincia,
-        SUM(f.line_total) AS ventas
-FROM fact_sales AS f
-JOIN dim_date AS d ON d.date_key = f.date_key
+-- 5- Ventas por Provincia
+SELECT p.name AS provincia, SUM(f.total_amount) AS ventas
+FROM fact_orders AS f
 JOIN dim_province AS p ON p.province_key = f.province_key
-WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
-GROUP BY d.year, d.month, p.name;
+WHERE f.status IN ('PAID', 'FULFILLED')
+GROUP BY p.name
+ORDER BY ventas DESC;
 
--- 6- Ranking de ventas por producto (mensual): line_total por producto y mes
+-- 6- Ranking de ventas por producto (mensual)
 SELECT d.year, d.month, p.name AS producto,
        SUM(f.line_total) AS ventas,
        RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
 FROM fact_sales AS f
-JOIN dim_date AS d ON d.date_key    = f.date_key
+JOIN dim_date    AS d ON d.date_key    = f.date_key
 JOIN dim_product AS p ON p.product_key = f.product_key
 WHERE f.is_sale = 1
 GROUP BY d.year, d.month, p.name
