@@ -137,6 +137,14 @@ JOIN dim_date AS d ON d.date_key    = n.date_key
 JOIN dim_channel AS c ON c.channel_key = n.channel_key
 WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30' AND c.code = 'ONLINE';
 
+-- 5- Ventas por Provincia: SUM(line_total) por provincia y mes, filtrable por canal y período
+SELECT d.year, d.month, p.name AS provincia,
+        SUM(f.line_total) AS ventas
+FROM fact_sales AS f
+JOIN dim_date AS d ON d.date_key = f.date_key
+JOIN dim_province AS p ON p.province_key = f.province_key
+WHERE d.fecha BETWEEN DATE '2024-01-01' AND DATE '2025-09-30'
+GROUP BY d.year, d.month, p.name;
 
 -- 6- Ranking de ventas por producto (mensual): line_total por producto y mes
 SELECT d.year, d.month, p.name AS producto,
