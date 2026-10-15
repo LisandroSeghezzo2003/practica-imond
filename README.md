@@ -4,6 +4,8 @@ Trabajo práctico de **Introducción al Marketing Online y los Negocios Digitale
 
 Se arma un data warehouse con modelo estrella (Kimball) a partir de los datos de ventas de EcoBottle AR (online + tiendas físicas), para alimentar un dashboard con los KPIs: Ventas, Usuarios Activos, Ticket Promedio, NPS, Ventas por Provincia y Ranking Mensual por Producto.
 
+El proyecto transforma tablas transaccionales (un CSV por tabla en `raw/`) en un modelo dimensional listo para análisis. Todo el proceso es reproducible: un solo comando reconstruye el warehouse desde cero y exporta los resultados a CSV, que son la fuente del dashboard.
+
 - **Autor:** Lisandro Seghezzo
 - **Dashboard:**
 
@@ -12,17 +14,18 @@ Se arma un data warehouse con modelo estrella (Kimball) a partir de los datos de
 ## 1. Estructura del repositorio
 
 ```
-raw/               datos de origen (un CSV por tabla). No se modifican.
-sql/
-  01_dimensiones.sql   tablas de dimensiones
-  02_hechos.sql        tablas de hechos (con FOREIGN KEY a las dimensiones)
-  03_consultas.sql     controles de calidad y consultas de los KPIs
-run_sql.py         ejecuta los SQL y arma el data warehouse
-requirements.txt   dependencias (DuckDB)
-dw/                data warehouse en CSV (se genera al ejecutar)
-generator/         generador de los datos de raw/ (no se usa en la práctica)
-```
+.
+├── raw/                    # Datos de origen (un CSV por tabla). No se modifican.
+├── sql/
+│   ├── 01_dimensiones.sql  # Tablas de dimensiones
+│   ├── 02_hechos.sql       # Tablas de hechos (con FOREIGN KEY a las dimensiones)
+│   └── 03_consultas.sql    # Controles de calidad y consultas de los KPIs
+├── dw/                     # Data warehouse en CSV (se genera al ejecutar)
+├── generator/              # Generador de los datos de raw/
+├── run_sql.py              # Ejecuta los SQL y arma el data warehouse
+└── requirements.txt        # Dependencias (DuckDB)
 
+```
 ## 2. Instrucciones de ejecución
 
 Requisitos: Python 3.9 o superior y Git.
@@ -46,7 +49,14 @@ python run_sql.py
 
 En Mac/Linux la activación es `source .venv/bin/activate`.
 
-`python run_sql.py` arma todo desde cero en cada ejecución: crea `warehouse.duckdb`, ejecuta los archivos de `sql/` en orden, muestra el resultado de cada `SELECT` y exporta cada tabla creada como CSV en `dw/`. Esos CSV son la fuente del dashboard.
+### ¿Qué hace `python run_sql.py`?
+
+Reconstruye todo desde cero en cada ejecución:
+
+1. Crea `warehouse.duckdb`.
+2. Ejecuta los archivos de `sql/` en orden.
+3. Muestra por consola el resultado de cada `SELECT`.
+4. Exporta cada tabla creada como CSV en `dw/` (fuente del dashboard).
 
 Otros modos:
 
@@ -212,42 +222,53 @@ Cada una tiene una clave (`payment_method_key`, `source_key`, `device_key`) y un
 
 ## 5. Supuestos y decisiones
 
-- Los datos son una foto del sistema al 30/09/2025 23:59:59 y cubren pedidos del 01/01/2024 al 30/09/2025. `dim_date` cubre exactamente ese rango (639 días).
-- Montos en pesos argentinos. Los precios de lista y `line_total` no incluyen IVA; `total_amount` incluye IVA (21 %) y envío.
+### Datos y negocio
+
+- Los datos son una foto del sistema al **30/09/2025 23:59:59** y cubren pedidos del 01/01/2024 al 30/09/2025. `dim_date` cubre exactamente ese rango (639 días).
+- Montos en pesos argentinos. Los precios de lista y `line_total` **no incluyen IVA**; `total_amount` **incluye IVA (21 %) y envío**.
 - **Solo cuentan como venta** los pedidos `PAID` y `FULFILLED` (`is_sale = 1`). `CREATED`, `CANCELLED` y `REFUNDED` no.
-- Ventas y Ticket Promedio usan `total_amount`, como define la consigna. El ranking por producto usa `line_total` (sin IVA ni envío), por lo que no suma el mismo valor que Ventas.
-- Se mantienen en `dim_customer` los clientes dados de baja (`status = 'I'`): sus compras siguen en los datos.
-- 276 clientes no tienen teléfono (campo opcional); se mantienen como `NULL`.
+- Ventas y Ticket Promedio usan `total_amount`, como define la consigna. El ranking por producto usa `line_total` (sin IVA ni envío), por lo que **no suma el mismo valor que Ventas**.
+- Usuarios activos: clientes distintos con sesión **más** sesiones anónimas contadas por `session_id`.
+
+### Modelado
+
+- Cada tabla usa clave subrogada (`_key`) generada con `ROW_NUMBER()`, siguiendo el ejemplo de `dim_product`.
+- `fact_orders` y `fact_sales` tienen grano distinto: los importes del pedido (envío, IVA, total) viven solo en `fact_orders` para no contarlos dos veces.
 - **No se usó fila "Desconocido" (`-1`)** en ninguna dimensión. Donde la clave puede venir vacía por definición (tienda en pedidos online, cliente en sesiones y NPS anónimos) la clave foránea admite `NULL`.
-- Todos los pedidos tienen dirección de envío y toda dirección tiene provincia; por eso `province_key` es obligatoria. En compras en tienda, la dirección de envío es la de la tienda.
+- Todos los pedidos tienen dirección de envío y toda dirección tiene provincia, por eso `province_key` es obligatoria. En compras en tienda, la dirección de envío es la de la tienda.
 - Se omitió `dim_carrier` porque `shipment.carrier` tiene un único valor (Correo Argentino); queda como atributo de `fact_shipment`.
 - Los estados (pedido, pago, envío) se dejaron como atributo de los hechos, sin dimensión propia.
-- **Usuarios activos:** se cuentan clientes distintos con sesión más sesiones anónimas por `session_id`.
-- `fact_orders` y `fact_sales` tienen grano distinto: los importes del pedido (envío, IVA, total) viven solo en `fact_orders` para no contarlos dos veces.
-- Cada tabla usa clave subrogada (`_key`) generada con `ROW_NUMBER()`, siguiendo el ejemplo `dim_product`.
+
+### Calidad de datos
+
+- Se mantienen en `dim_customer` los clientes dados de baja (`status = 'I'`): sus compras siguen en los datos.
+- 276 clientes no tienen teléfono (campo opcional); se mantienen como `NULL`.
 
 ## 6. Consultas clave (KPIs)
 
-Están en `sql/03_consultas.sql`.
+Todas las consultas están en [`sql/03_consultas.sql`](sql/03_consultas.sql).
 
-**Total Ventas**
-```sql
-SELECT 
-  SUM(f.total_amount) AS total_ventas,
-  SUM(f.shipping_fee) AS total_envios,
-  SUM(f.tax_amount) AS total_impuestos,
-FROM fact_orders AS f
-WHERE f.status IN ('PAID', 'FULFILLED');
-```
+### Ventas totales
 
-**Ticket Promedio**
 ```sql
-SELECT SUM(total_amount) / COUNT(*) AS ticket_promedio
+SELECT
+  SUM(total_amount) AS total_ventas,
+  SUM(shipping_fee) AS total_envios,
+  SUM(tax_amount)   AS total_impuestos
 FROM fact_orders
-WHERE status IN ('PAID', 'FULFILLED');
+WHERE is_sale = 1;
 ```
 
-**Usuarios Activos: identificados y anónimos**
+### Ticket promedio
+
+```sql
+SELECT AVG(total_amount) AS ticket_promedio
+FROM fact_orders
+WHERE is_sale = 1;
+```
+
+### Usuarios activos (identificados + anónimos)
+
 ```sql
 SELECT
   COUNT(DISTINCT customer_key)
@@ -255,35 +276,43 @@ SELECT
 FROM fact_web_session;
 ```
 
-**NPS**
+### NPS
+
+`NPS = %Promotores (9–10) − %Detractores (0–6)`
+
 ```sql
 SELECT ROUND(100.0 * (
-  SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
+    SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
   - SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)
-  ) / COUNT(*), 1) AS nps
+) / COUNT(*), 1) AS nps
 FROM fact_nps;
 ```
 
-**Ventas por provincia**
+### Ventas por provincia
+
 ```sql
-SELECT 
-  p.name AS provincia, 
+SELECT
+  p.name AS provincia,
   SUM(f.total_amount) AS ventas
 FROM fact_orders AS f
 JOIN dim_province AS p ON p.province_key = f.province_key
-WHERE f.status IN ('PAID', 'FULFILLED')
+WHERE f.is_sale = 1
 GROUP BY p.name
 ORDER BY ventas DESC;
 ```
 
-**Ranking mensual por producto**
+### Ranking mensual por producto
+
 ```sql
-SELECT 
+SELECT
   d.year,
   d.month,
   p.name AS producto,
   SUM(f.line_total) AS ventas,
-  RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
+  RANK() OVER (
+    PARTITION BY d.year, d.month
+    ORDER BY SUM(f.line_total) DESC
+  ) AS ranking
 FROM fact_sales AS f
 JOIN dim_date    AS d ON d.date_key    = f.date_key
 JOIN dim_product AS p ON p.product_key = f.product_key
@@ -296,10 +325,12 @@ ORDER BY d.year, d.month, ranking;
 
 `sql/03_consultas.sql` incluye controles que se muestran al ejecutar `run_sql.py`:
 
-- Cantidad de filas de cada hecho y dimensión contra el origen (diferencia esperada: 0).
-- Suma de `total_amount` y `line_total` del hecho contra el origen (diferencia esperada: 0).
-- Conteo de nulos por columna en las dimensiones (solo `phone` tiene nulos: 276).
-- Ventas por provincia, canal y mes suman lo mismo que el KPI de Ventas.
+| Control | Resultado esperado |
+|---|---|
+| Cantidad de filas de cada hecho y dimensión vs. origen | Diferencia = 0 |
+| Suma de `total_amount` y `line_total` vs. origen | Diferencia = 0 |
+| Conteo de nulos por columna en dimensiones | Solo `phone` tiene nulos (276) |
+| Ventas por provincia, canal y mes vs. KPI de Ventas | Suman el mismo total |
 
 ## 8. Convención de commits
 
