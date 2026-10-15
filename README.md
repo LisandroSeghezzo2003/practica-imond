@@ -94,19 +94,40 @@ Otros modos:
 
 ### Relaciones principales
 
-```
-dim_date ───────┐
-dim_channel ────┤
-dim_province ───┼── fact_orders ── fact_sales ── dim_product
-dim_customer ───┤        │
-dim_store ──────┘        ├── fact_payment ── dim_payment_method
-                         └── fact_shipment
+### Relaciones principales
 
-dim_date, dim_customer, dim_source, dim_device ── fact_web_session
-dim_date, dim_customer, dim_channel ─────────── fact_nps
-```
+Todas las relaciones son de **muchos a uno** (N:1): muchas filas del hecho apuntan a una fila de la dimensión. "Obligatoria" significa que la clave foránea nunca es `NULL`; "Opcional" significa que puede ser `NULL` por definición del negocio.
 
-El diagrama generado automáticamente está en `dw/modelo_estrella.md`.
+| Hecho | Clave foránea | Referencia a | Tipo | Cuándo es `NULL` |
+|---|---|---|---|---|
+| `fact_orders` | `date_key` | `dim_date` | Obligatoria | — |
+| | `customer_key` | `dim_customer` | Obligatoria | — |
+| | `channel_key` | `dim_channel` | Obligatoria | — |
+| | `province_key` | `dim_province` | Obligatoria | — |
+| | `store_key` | `dim_store` | Opcional | Pedidos online (no hay tienda) |
+| `fact_sales` | `order_id` | `fact_orders` | Obligatoria | — |
+| | `product_key` | `dim_product` | Obligatoria | — |
+| | `date_key`, `channel_key`, `province_key` | `dim_date`, `dim_channel`, `dim_province` | Obligatoria | — |
+| `fact_payment` | `order_id` | `fact_orders` | Obligatoria | — |
+| | `payment_method_key` | `dim_payment_method` | Obligatoria | — |
+| | `date_key` | `dim_date` | Opcional | Pago no concretado |
+| `fact_shipment` | `order_id` | `fact_orders` | Obligatoria | — |
+| | `shipped_date_key`, `delivered_date_key` | `dim_date` | Opcional | Envío aún no despachado o no entregado |
+| `fact_web_session` | `date_key` | `dim_date` | Obligatoria | — |
+| | `customer_key` | `dim_customer` | Opcional | Visitante anónimo |
+| | `source_key`, `device_key` | `dim_source`, `dim_device` | Opcional | Sin dato de origen o dispositivo |
+| `fact_nps` | `date_key`, `channel_key` | `dim_date`, `dim_channel` | Obligatoria | — |
+| | `customer_key` | `dim_customer` | Opcional | Respuesta anónima |
+
+**Cómo leerlas**
+
+- **Pedidos como eje central**: `fact_orders` conecta con fecha, cliente, canal, provincia y tienda. De él cuelgan las líneas del pedido (`fact_sales`), los pagos (`fact_payment`) y los envíos (`fact_shipment`), todos vinculados por `order_id`.
+- **Un pedido, muchas líneas**: un pedido tiene una o más líneas en `fact_sales` (una por producto). También puede tener varios pagos, por ejemplo un intento fallido y uno exitoso.
+- **Dimensiones compartidas**: `dim_date` se usa en todos los hechos, y `dim_customer` y `dim_channel` en varios. Eso permite cruzar métricas, por ejemplo ventas y NPS por canal y mes.
+- **Fechas con rol**: `fact_shipment` usa `dim_date` dos veces, una para el despacho (`shipped_date_key`) y otra para la entrega (`delivered_date_key`).
+
+
+> El diagrama completo generado automáticamente está en [`dw/modelo_estrella.md`](dw/modelo_estrella.md).
 
 ## 4. Diccionario de datos
 
