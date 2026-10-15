@@ -232,7 +232,10 @@ Están en `sql/03_consultas.sql`.
 
 **Total Ventas**
 ```sql
-SELECT SUM(f.total_amount) AS total_ventas
+SELECT 
+  SUM(f.total_amount) AS total_ventas,
+  SUM(f.shipping_fee) AS total_envios,
+  SUM(f.tax_amount) AS total_impuestos,
 FROM fact_orders AS f
 WHERE f.status IN ('PAID', 'FULFILLED');
 ```
@@ -244,10 +247,10 @@ FROM fact_orders
 WHERE status IN ('PAID', 'FULFILLED');
 ```
 
-**Usuarios Activos**
+**Usuarios Activos: identificados y anónimos**
 ```sql
 SELECT
-    COUNT(DISTINCT customer_key)
+  COUNT(DISTINCT customer_key)
   + COUNT(DISTINCT CASE WHEN customer_key IS NULL THEN session_id END) AS usuarios_activos
 FROM fact_web_session;
 ```
@@ -255,15 +258,17 @@ FROM fact_web_session;
 **NPS**
 ```sql
 SELECT ROUND(100.0 * (
-         SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
-       - SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)
-       ) / COUNT(*), 1) AS nps
+  SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
+  - SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)
+  ) / COUNT(*), 1) AS nps
 FROM fact_nps;
 ```
 
 **Ventas por provincia**
 ```sql
-SELECT p.name AS provincia, SUM(f.total_amount) AS ventas
+SELECT 
+  p.name AS provincia, 
+  SUM(f.total_amount) AS ventas
 FROM fact_orders AS f
 JOIN dim_province AS p ON p.province_key = f.province_key
 WHERE f.status IN ('PAID', 'FULFILLED')
@@ -273,9 +278,12 @@ ORDER BY ventas DESC;
 
 **Ranking mensual por producto**
 ```sql
-SELECT d.year, d.month, p.name AS producto,
-       SUM(f.line_total) AS ventas,
-       RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
+SELECT 
+  d.year,
+  d.month,
+  p.name AS producto,
+  SUM(f.line_total) AS ventas,
+  RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
 FROM fact_sales AS f
 JOIN dim_date    AS d ON d.date_key    = f.date_key
 JOIN dim_product AS p ON p.product_key = f.product_key
@@ -293,15 +301,7 @@ ORDER BY d.year, d.month, ranking;
 - Conteo de nulos por columna en las dimensiones (solo `phone` tiene nulos: 276).
 - Ventas por provincia, canal y mes suman lo mismo que el KPI de Ventas.
 
-## 8. Dashboard
-
-- Herramienta: `<Power BI / Looker Studio>`
-- Fuente: los CSV de `dw/`
-- Filtros: fecha, canal, provincia y producto
-- Vistas: Ventas, Usuarios Activos, Ticket Promedio, NPS, Ventas por Provincia y Ranking mensual por Producto
-- Enlace / capturas: `<completar>`
-
-## 9. Convención de commits
+## 8. Convención de commits
 
 Se usan *conventional commits*: `tipo: descripción`.
 
@@ -312,5 +312,3 @@ Se usan *conventional commits*: `tipo: descripción`.
 | `refactor` | reordenar código sin cambiar el resultado |
 | `docs` | README y documentación |
 | `chore` | tareas menores (requirements, .gitignore) |
-
-Toda la gestión del repositorio se hace por consola.
