@@ -104,55 +104,35 @@ UNION ALL SELECT (SELECT SUM(line_total)   FROM fact_sales)  - (SELECT SUM(line_
 -- =====================================================================
 
 -- 1- $M Total Ventas
-
-SELECT d.year, d.month, c.name AS canal, SUM(f.total_amount) AS total_ventas
+SELECT 
+  SUM(f.total_amount) AS total_ventas,
+  SUM(f.shipping_fee) AS total_envios,
+  SUM(f.tax_amount) AS total_impuestos,
 FROM fact_orders AS f
-JOIN dim_date AS d ON d.date_key = f.date_key
-JOIN dim_channel AS c ON c.channel_key = f.channel_key
-WHERE f.status IN ('PAID', 'FULFILLED')
-GROUP BY d.year, d.month, c.name
-ORDER BY d.year, d.month, c.name;
+WHERE f.status IN ('PAID', 'FULFILLED');
 
 -- 2- $K Ticket Promedio
+SELECT SUM(total_amount) / COUNT(*) AS ticket_promedio
+FROM fact_orders
+WHERE status IN ('PAID', 'FULFILLED');
 
-SELECT d.year, d.month, c.name AS canal, SUM(total_amount) / COUNT(*) AS ticket_promedio
-FROM fact_orders AS f
-JOIN dim_date AS d ON d.date_key = f.date_key
-JOIN dim_channel AS c ON c.channel_key = f.channel_key
-WHERE f.status IN ('PAID', 'FULFILLED')
-GROUP BY d.year, d.month, c.name
-ORDER BY d.year, d.month, c.name;
-
--- 3 - Usuarios Activos (nK): identificados y anónimos por período
-
+-- 3- nK Usuarios Activos
 SELECT
-    d.year,
-    d.month,
-    COUNT(DISTINCT f.customer_key) AS usuarios_identificados,
-    COUNT(DISTINCT CASE
-      WHEN f.customer_key IS NULL THEN f.session_id
-    END) AS usuarios_anonimos
-FROM fact_web_session AS f
-JOIN dim_date AS d
-    ON d.date_key = f.date_key
-GROUP BY d.year, d.month
-ORDER BY d.year, d.month;
+  COUNT(DISTINCT customer_key)
+  + COUNT(DISTINCT CASE WHEN customer_key IS NULL THEN session_id END) AS usuarios_activos
+FROM fact_web_session;
 
 -- 4- NPS
-
-SELECT d.year, d.month, c.name AS canal, ROUND(100.0 * (
-        SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
-      - SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)
-      ) / COUNT(*), 1) AS nps
-FROM fact_nps AS f
-JOIN dim_date AS d ON d.date_key = f.date_key
-JOIN dim_channel AS c ON c.channel_key = f.channel_key
-GROUP BY d.year, d.month, c.name
-ORDER BY d.year, d.month, c.name;
+SELECT ROUND(100.0 * (
+  SUM(CASE WHEN score >= 9 THEN 1 ELSE 0 END)
+  - SUM(CASE WHEN score <= 6 THEN 1 ELSE 0 END)
+  ) / COUNT(*), 1) AS nps
+FROM fact_nps;
 
 -- 5- Ventas por Provincia
-
-SELECT p.name AS provincia, SUM(f.total_amount) AS ventas
+SELECT 
+  p.name AS provincia, 
+  SUM(f.total_amount) AS ventas
 FROM fact_orders AS f
 JOIN dim_province AS p ON p.province_key = f.province_key
 WHERE f.status IN ('PAID', 'FULFILLED')
@@ -160,10 +140,12 @@ GROUP BY p.name
 ORDER BY ventas DESC;
 
 -- 6- Ranking de ventas por producto (mensual)
-
-SELECT d.year, d.month, p.name AS producto,
-      SUM(f.line_total) AS ventas,
-      RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
+SELECT 
+  d.year,
+  d.month,
+  p.name AS producto,
+  SUM(f.line_total) AS ventas,
+  RANK() OVER (PARTITION BY d.year, d.month ORDER BY SUM(f.line_total) DESC) AS ranking
 FROM fact_sales AS f
 JOIN dim_date    AS d ON d.date_key    = f.date_key
 JOIN dim_product AS p ON p.product_key = f.product_key
