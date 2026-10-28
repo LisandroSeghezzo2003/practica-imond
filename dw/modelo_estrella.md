@@ -147,4 +147,67 @@ erDiagram
         TIMESTAMP started_at
         TIMESTAMP ended_at
     }
+    marts_nps {
+        BIGINT nps_id
+        INTEGER date_key
+        DATE full_date
+        INTEGER year
+        INTEGER month
+        VARCHAR month_name
+        INTEGER customer_key
+        INTEGER channel_key
+        VARCHAR channel_name
+        SMALLINT score
+        VARCHAR nps_category
+        DECIMAL puntos_nps
+    }
+    marts_orders {
+        BIGINT order_id
+        INTEGER date_key
+        DATE full_date
+        INTEGER year
+        INTEGER month
+        VARCHAR month_name
+        INTEGER customer_key
+        INTEGER channel_key
+        VARCHAR channel_name
+        INTEGER province_key
+        VARCHAR province_name
+        DECIMAL ventas_sin_impuestos
+        DECIMAL impuestos
+        DECIMAL ventas_sin_envio
+        DECIMAL costo_envio
+        DECIMAL ventas_totales
+    }
+    marts_sales_products {
+        BIGINT order_item_id
+        BIGINT order_id
+        INTEGER date_key
+        DATE full_date
+        INTEGER year
+        INTEGER month
+        VARCHAR month_name
+        INTEGER product_key
+        VARCHAR product_name
+        VARCHAR product_category
+        INTEGER channel_key
+        VARCHAR channel_name
+        INTEGER province_key
+        VARCHAR province_name
+        INTEGER unidades_vendidas
+        DECIMAL ventas_producto
+    }
+    marts_web_active_users {
+        BIGINT session_id
+        INTEGER date_key
+        DATE full_date
+        INTEGER year
+        INTEGER month
+        VARCHAR month_name
+        INTEGER customer_key
+        INTEGER source_key
+        INTEGER device_key
+        VARCHAR usuario_activo_id
+        VARCHAR tipo_usuario
+    }
 ```
