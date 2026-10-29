@@ -8,6 +8,8 @@ El proyecto transforma tablas transaccionales (un CSV por tabla en `raw/`) en un
 
 - **Autor:** Lisandro Seghezzo
 - **Dashboard:** archivo de Power BI en [`dashboard/EcoBottle_Dashboard.pbix`](dashboard/EcoBottle_Dashboard.pbix) (ver la [sección 8](#8-dashboard-y-archivo-binario))
+<img width="768" height="429" alt="image" src="https://github.com/user-attachments/assets/94eb6054-158c-4bb6-9dea-ded050827338" />
+<img width="769" height="430" alt="image" src="https://github.com/user-attachments/assets/ac5767ad-843c-4aff-83d0-927f6fc89649" />
 
 ---
 
