@@ -4,10 +4,10 @@
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- 1. Data Mart de Pedidos Efectivos (marts_orders)
+-- 1. Data Mart de Pedidos Efectivos (mart_orders)
 -- Alimenta: Total Ventas, Ticket Promedio, Pedidos Vendidos y Mapa
 -- ---------------------------------------------------------------------
-CREATE TABLE marts_orders AS
+CREATE TABLE mart_orders AS
 SELECT
     o.order_id,
     o.date_key,
@@ -32,10 +32,10 @@ JOIN dim_province p  ON o.province_key = p.province_key
 WHERE o.is_sale = 1;
 
 -- ---------------------------------------------------------------------
--- 2. Data Mart de Ventas por Producto (marts_sales_products)
+-- 2. Data Mart de Ventas por Producto (mart_sales_products)
 -- Alimenta: Gráfico de anillo por Producto y Evolución Mensual
 -- ---------------------------------------------------------------------
-CREATE TABLE marts_sales_products AS
+CREATE TABLE mart_sales_products AS
 SELECT
     s.order_item_id,
     s.order_id,
@@ -61,10 +61,10 @@ JOIN dim_province p  ON s.province_key = p.province_key
 WHERE s.is_sale = 1;
 
 -- ---------------------------------------------------------------------
--- 3. Data Mart de Usuarios Activos Web (marts_web_active_users)
+-- 3. Data Mart de Usuarios Activos Web (mart_web_active_users)
 -- Alimenta: Tarjeta Usuarios Activos y Evolución Mensual
 -- ---------------------------------------------------------------------
-CREATE TABLE marts_web_active_users AS
+CREATE TABLE mart_web_active_users AS
 SELECT
     ws.session_id,
     ws.date_key,
@@ -89,11 +89,11 @@ FROM fact_web_session ws
 JOIN dim_date d ON ws.date_key = d.date_key;
 
 -- ---------------------------------------------------------------------
--- 4. Data Mart de Satisfacción NPS (marts_nps)
+-- 4. Data Mart de Satisfacción NPS (mart_nps)
 -- Alimenta: Medidor de Puntos NPS (usando Promedio de puntos_nps)
 -- Promotor: 9-10 | Pasivo: 7-8 | Detractor: 0-6
 -- ---------------------------------------------------------------------
-CREATE TABLE marts_nps AS
+CREATE TABLE mart_nps AS
 SELECT
     n.nps_id,
     n.date_key,
