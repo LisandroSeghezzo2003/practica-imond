@@ -147,7 +147,7 @@ erDiagram
         TIMESTAMP started_at
         TIMESTAMP ended_at
     }
-    marts_nps {
+    mart_nps {
         BIGINT nps_id
         INTEGER date_key
         DATE full_date
@@ -161,7 +161,7 @@ erDiagram
         VARCHAR nps_category
         DECIMAL puntos_nps
     }
-    marts_orders {
+    mart_orders {
         BIGINT order_id
         INTEGER date_key
         DATE full_date
@@ -179,7 +179,7 @@ erDiagram
         DECIMAL costo_envio
         DECIMAL ventas_totales
     }
-    marts_sales_products {
+    mart_sales_products {
         BIGINT order_item_id
         BIGINT order_id
         INTEGER date_key
@@ -197,7 +197,7 @@ erDiagram
         INTEGER unidades_vendidas
         DECIMAL ventas_producto
     }
-    marts_web_active_users {
+    mart_web_active_users {
         BIGINT session_id
         INTEGER date_key
         DATE full_date
