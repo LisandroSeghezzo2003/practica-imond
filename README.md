@@ -358,14 +358,14 @@ Los hechos y las dimensiones se usan para datos sin agrupar ni calcular. Los mar
 
 | Mart | Una fila es... | Fuente | Filtro aplicado | Alimenta |
 |---|---|---|---|---|
-| `marts_orders` | un pedido vendido | `fact_orders` + `dim_date` + `dim_channel` + `dim_province` | `is_sale = 1` | Total Ventas, Ticket Promedio, Pedidos Vendidos, Ventas por Provincia, IVA y envío |
-| `marts_sales_products` | una línea de pedido vendida | `fact_sales` + `dim_date` + `dim_product` + `dim_channel` + `dim_province` | `is_sale = 1` | Participación y evolución mensual por producto, ranking |
-| `marts_web_active_users` | una sesión web | `fact_web_session` + `dim_date` | ninguno | Usuarios Activos (identificados y anónimos) |
-| `marts_nps` | una respuesta de encuesta | `fact_nps` + `dim_date` + `dim_channel` | ninguno | NPS |
+| `mart_orders` | un pedido vendido | `fact_orders` + `dim_date` + `dim_channel` + `dim_province` | `is_sale = 1` | Total Ventas, Ticket Promedio, Pedidos Vendidos, Ventas por Provincia, IVA y envío |
+| `mart_sales_products` | una línea de pedido vendida | `fact_sales` + `dim_date` + `dim_product` + `dim_channel` + `dim_province` | `is_sale = 1` | Participación y evolución mensual por producto, ranking |
+| `mart_web_active_users` | una sesión web | `fact_web_session` + `dim_date` | ninguno | Usuarios Activos (identificados y anónimos) |
+| `mart_nps` | una respuesta de encuesta | `fact_nps` + `dim_date` + `dim_channel` | ninguno | NPS |
 
 ### Decisiones de diseño
 
-- **La regla de venta se aplica en SQL.** `marts_orders` y `marts_sales_products` solo contienen pedidos `PAID` y `FULFILLED`, así que el tablero no necesita filtrar por estado.
+- **La regla de venta se aplica en SQL.** `mart_orders` y `mart_sales_products` solo contienen pedidos `PAID` y `FULFILLED`, así que el tablero no necesita filtrar por estado.
 - **Los marts están desnormalizados.** Traen año, mes, nombre del canal, de la provincia y del producto, por lo que no dependen de relaciones con las dimensiones para filtrar.
 - **Los campos calculados se crean en SQL**: `ventas_sin_envio`, `usuario_activo_id`, `tipo_usuario`, `nps_category` y `puntos_nps`.
 - **Power BI solo aplica la agregación básica de cada columna** (Suma, Promedio, Recuento distinto), sin escribir medidas DAX.
@@ -374,25 +374,25 @@ Los hechos y las dimensiones se usan para datos sin agrupar ni calcular. Los mar
 
 | KPI | Mart y columna | Agregación en Power BI |
 |---|---|---|
-| Total Ventas | `marts_orders[ventas_totales]` | Suma |
-| Ticket Promedio | `marts_orders[ventas_totales]` | Promedio |
-| Pedidos Vendidos | `marts_orders[order_id]` | Recuento |
-| Ventas por Provincia | `marts_orders[province_name]` y `ventas_totales` | Suma |
-| IVA y envío | `marts_orders[impuestos]` y `costo_envio` | Suma |
-| Ventas por producto | `marts_sales_products[ventas_producto]` por `product_name` | Suma |
-| Unidades vendidas | `marts_sales_products[unidades_vendidas]` | Suma |
-| Usuarios Activos | `marts_web_active_users[usuario_activo_id]` | Recuento (distinto) |
-| NPS | `marts_nps[puntos_nps]` | Promedio |
+| Total Ventas | `mart_orders[ventas_totales]` | Suma |
+| Ticket Promedio | `mart_orders[ventas_totales]` | Promedio |
+| Pedidos Vendidos | `mart_orders[order_id]` | Recuento |
+| Ventas por Provincia | `mart_orders[province_name]` y `ventas_totales` | Suma |
+| IVA y envío | `mart_orders[impuestos]` y `costo_envio` | Suma |
+| Ventas por producto | `mart_sales_products[ventas_producto]` por `product_name` | Suma |
+| Unidades vendidas | `mart_sales_products[unidades_vendidas]` | Suma |
+| Usuarios Activos | `mart_web_active_users[usuario_activo_id]` | Recuento (distinto) |
+| NPS | `mart_nps[puntos_nps]` | Promedio |
 
 Por qué cada agregación da el valor que define la consigna:
 
-- **Ticket Promedio:** como `marts_orders` solo tiene pedidos vendidos, el promedio de `ventas_totales` equivale a `SUM(total_amount) / COUNT(*)`.
+- **Ticket Promedio:** como `mart_orders` solo tiene pedidos vendidos, el promedio de `ventas_totales` equivale a `SUM(total_amount) / COUNT(*)`.
 - **Usuarios Activos:** `usuario_activo_id` vale `CUST-<customer_key>` para clientes identificados y `ANON-<session_id>` para anónimos. El recuento distinto equivale a clientes distintos más sesiones anónimas.
 - **NPS:** `puntos_nps` vale 100 para promotores (9–10), 0 para pasivos (7–8) y −100 para detractores (0–6). Su promedio es `(%Promotores − %Detractores) × 100`.
 
 ### Diccionario de los marts
 
-#### marts_orders
+#### mart_orders
 | Columna | Tipo | Descripción |
 |---|---|---|
 | order_id | BIGINT | Pedido |
@@ -405,7 +405,7 @@ Por qué cada agregación da el valor que define la consigna:
 | costo_envio | DECIMAL(12,2) | `shipping_fee` |
 | ventas_totales | DECIMAL(12,2) | `total_amount` (subtotal + IVA + envío) |
 
-#### marts_sales_products
+#### mart_sales_products
 | Columna | Tipo | Descripción |
 |---|---|---|
 | order_item_id, order_id | BIGINT | Línea y pedido |
@@ -415,7 +415,7 @@ Por qué cada agregación da el valor que define la consigna:
 | unidades_vendidas | INTEGER | `quantity` |
 | ventas_producto | DECIMAL(12,2) | `line_total`, sin IVA ni envío |
 
-#### marts_web_active_users
+#### mart_web_active_users
 | Columna | Tipo | Descripción |
 |---|---|---|
 | session_id | BIGINT | Sesión |
@@ -424,7 +424,7 @@ Por qué cada agregación da el valor que define la consigna:
 | usuario_activo_id | VARCHAR | `CUST-<customer_key>` o `ANON-<session_id>` |
 | tipo_usuario | VARCHAR | `Identificado` o `Anónimo` |
 
-#### marts_nps
+#### mart_nps
 | Columna | Tipo | Descripción |
 |---|---|---|
 | nps_id | BIGINT | Respuesta |
@@ -436,7 +436,7 @@ Por qué cada agregación da el valor que define la consigna:
 
 ### Qué filtro mueve a cada mart
 
-| Filtro | `marts_orders` | `marts_sales_products` | `marts_web_active_users` | `marts_nps` |
+| Filtro | `mart_orders` | `mart_sales_products` | `mart_web_active_users` | `mart_nps` |
 |---|---|---|---|---|
 | Fecha | Sí | Sí | Sí | Sí |
 | Canal | Sí | Sí | No | Sí |
@@ -445,7 +445,7 @@ Por qué cada agregación da el valor que define la consigna:
 
 - **Usuarios Activos** responde solo a la fecha: la sesión web no tiene canal ni provincia.
 - **NPS** no responde a la provincia: la encuesta no está asociada a un pedido ni a una dirección.
-- **Total Ventas y Ticket Promedio** no responden al filtro de producto, porque `marts_orders` tiene una fila por pedido y un pedido puede incluir varios productos.
+- **Total Ventas y Ticket Promedio** no responden al filtro de producto, porque `mart_orders` tiene una fila por pedido y un pedido puede incluir varios productos.
 - **Ventas por producto** usa `ventas_producto` (`line_total`, sin IVA ni envío), por lo que no suma lo mismo que Total Ventas. La diferencia son el IVA y el envío.
 - **Anónimos:** cada sesión anónima cuenta como un usuario distinto, porque no hay forma de saber si dos sesiones son de la misma persona. Por eso la cifra de anónimos son, en realidad, sesiones.
 
@@ -453,13 +453,13 @@ Por qué cada agregación da el valor que define la consigna:
 
 ```sql
 SELECT SUM(ventas_totales) AS total_ventas, COUNT(*) AS pedidos, AVG(ventas_totales) AS ticket
-FROM marts_orders;                                    -- 382.410.636 y 10.998 pedidos
+FROM mart_orders;                                    -- 382.410.636 y 10.998 pedidos
 
-SELECT SUM(ventas_producto) FROM marts_sales_products; -- unos 309,9 millones
+SELECT SUM(ventas_producto) FROM mart_sales_products; -- unos 309,9 millones
 
-SELECT COUNT(DISTINCT usuario_activo_id) FROM marts_web_active_users;
+SELECT COUNT(DISTINCT usuario_activo_id) FROM mart_web_active_users;
 
-SELECT ROUND(AVG(puntos_nps), 1) AS nps FROM marts_nps; -- 30,0
+SELECT ROUND(AVG(puntos_nps), 1) AS nps FROM mart_nps; -- 30,0
 ```
 
 Los valores tienen que coincidir con las consultas de KPIs de la [sección 6](#6-consultas-clave-kpis).
