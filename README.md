@@ -7,7 +7,7 @@ Se arma un data warehouse con modelo estrella (Kimball) a partir de los datos de
 El proyecto transforma tablas transaccionales (un CSV por tabla en `raw/`) en un modelo dimensional listo para análisis. Todo el proceso es reproducible: un solo comando reconstruye el warehouse desde cero y exporta los resultados a CSV, que son la fuente del dashboard.
 
 - **Autor:** Lisandro Seghezzo
-- **Dashboard:**
+- **Dashboard:** archivo de Power BI en [`dashboard/EcoBottle_Dashboard.pbix`](dashboard/EcoBottle_Dashboard.pbix) (ver la [sección 8](#8-dashboard-y-archivo-binario))
 
 ---
 
@@ -19,7 +19,9 @@ El proyecto transforma tablas transaccionales (un CSV por tabla en `raw/`) en un
 ├── sql/
 │   ├── 01_dimensiones.sql  # Tablas de dimensiones
 │   ├── 02_hechos.sql       # Tablas de hechos (con FOREIGN KEY a las dimensiones)
-│   └── 03_consultas.sql    # Controles de calidad y consultas de los KPIs
+│   ├── 03_consultas.sql    # Controles de calidad y consultas de los KPIs
+│   └── 04_data_marts.sql   # Data marts: tablas con los KPIs calculados para Power BI
+├── dashboard/              # Tablero de Power BI (archivo binario .pbix)
 ├── dw/                     # Data warehouse en CSV (se genera al ejecutar)
 ├── generator/              # Generador de los datos de raw/
 ├── run_sql.py              # Ejecuta los SQL y arma el data warehouse
@@ -91,8 +93,6 @@ Otros modos:
 | `fact_nps` | una respuesta de encuesta | `raw.nps_response` | NPS |
 | `fact_payment` | un pago | `raw.payment` | Conciliación ventas vs. pagos |
 | `fact_shipment` | un envío por correo | `raw.shipment` | Logística y tiempos de entrega |
-
-### Relaciones principales
 
 ### Relaciones principales
 
@@ -269,6 +269,8 @@ Cada una tiene una clave (`payment_method_key`, `source_key`, `device_key`) y un
 
 Todas las consultas están en [`sql/03_consultas.sql`](sql/03_consultas.sql).
 
+Estas consultas definen y documentan cada KPI. El tablero no las ejecuta: consume los data marts de la [sección 7](#7-data-marts-capa-de-kpis), que materializan los mismos cálculos en tablas.
+
 ### Ventas totales
 
 ```sql
@@ -342,7 +344,148 @@ GROUP BY d.year, d.month, p.name
 ORDER BY d.year, d.month, ranking;
 ```
 
-## 7. Controles de calidad
+## 7. Data marts (capa de KPIs)
+
+Por criterio de la cátedra, los cálculos de los KPIs se resuelven en SQL (proceso ELT) y Power BI se usa para visualizar, sin medidas DAX. Para eso, [`sql/04_data_marts.sql`](sql/04_data_marts.sql) crea cuatro **data marts**: tablas construidas sobre los hechos y las dimensiones, con los campos calculados ya materializados. Se exportan a `dw/` junto con el resto del warehouse.
+
+```
+raw/  →  dimensiones y hechos (modelo estrella)  →  data marts  →  dashboard
+```
+
+Los hechos y las dimensiones se usan para datos sin agrupar ni calcular. Los marts se usan para indicadores y campos calculados.
+
+### Marts disponibles
+
+| Mart | Una fila es... | Fuente | Filtro aplicado | Alimenta |
+|---|---|---|---|---|
+| `marts_orders` | un pedido vendido | `fact_orders` + `dim_date` + `dim_channel` + `dim_province` | `is_sale = 1` | Total Ventas, Ticket Promedio, Pedidos Vendidos, Ventas por Provincia, IVA y envío |
+| `marts_sales_products` | una línea de pedido vendida | `fact_sales` + `dim_date` + `dim_product` + `dim_channel` + `dim_province` | `is_sale = 1` | Participación y evolución mensual por producto, ranking |
+| `marts_web_active_users` | una sesión web | `fact_web_session` + `dim_date` | ninguno | Usuarios Activos (identificados y anónimos) |
+| `marts_nps` | una respuesta de encuesta | `fact_nps` + `dim_date` + `dim_channel` | ninguno | NPS |
+
+### Decisiones de diseño
+
+- **La regla de venta se aplica en SQL.** `marts_orders` y `marts_sales_products` solo contienen pedidos `PAID` y `FULFILLED`, así que el tablero no necesita filtrar por estado.
+- **Los marts están desnormalizados.** Traen año, mes, nombre del canal, de la provincia y del producto, por lo que no dependen de relaciones con las dimensiones para filtrar.
+- **Los campos calculados se crean en SQL**: `ventas_sin_envio`, `usuario_activo_id`, `tipo_usuario`, `nps_category` y `puntos_nps`.
+- **Power BI solo aplica la agregación básica de cada columna** (Suma, Promedio, Recuento distinto), sin escribir medidas DAX.
+
+### Cómo se obtiene cada KPI en el tablero
+
+| KPI | Mart y columna | Agregación en Power BI |
+|---|---|---|
+| Total Ventas | `marts_orders[ventas_totales]` | Suma |
+| Ticket Promedio | `marts_orders[ventas_totales]` | Promedio |
+| Pedidos Vendidos | `marts_orders[order_id]` | Recuento |
+| Ventas por Provincia | `marts_orders[province_name]` y `ventas_totales` | Suma |
+| IVA y envío | `marts_orders[impuestos]` y `costo_envio` | Suma |
+| Ventas por producto | `marts_sales_products[ventas_producto]` por `product_name` | Suma |
+| Unidades vendidas | `marts_sales_products[unidades_vendidas]` | Suma |
+| Usuarios Activos | `marts_web_active_users[usuario_activo_id]` | Recuento (distinto) |
+| NPS | `marts_nps[puntos_nps]` | Promedio |
+
+Por qué cada agregación da el valor que define la consigna:
+
+- **Ticket Promedio:** como `marts_orders` solo tiene pedidos vendidos, el promedio de `ventas_totales` equivale a `SUM(total_amount) / COUNT(*)`.
+- **Usuarios Activos:** `usuario_activo_id` vale `CUST-<customer_key>` para clientes identificados y `ANON-<session_id>` para anónimos. El recuento distinto equivale a clientes distintos más sesiones anónimas.
+- **NPS:** `puntos_nps` vale 100 para promotores (9–10), 0 para pasivos (7–8) y −100 para detractores (0–6). Su promedio es `(%Promotores − %Detractores) × 100`.
+
+### Diccionario de los marts
+
+#### marts_orders
+| Columna | Tipo | Descripción |
+|---|---|---|
+| order_id | BIGINT | Pedido |
+| date_key, full_date, year, month, month_name | — | Fecha del pedido y sus partes |
+| customer_key, channel_key, province_key | INTEGER | Claves del cliente, canal y provincia |
+| channel_name, province_name | VARCHAR | Nombre del canal y de la provincia de envío |
+| ventas_sin_impuestos | DECIMAL(12,2) | `subtotal` del pedido |
+| impuestos | DECIMAL(12,2) | IVA (`tax_amount`) |
+| ventas_sin_envio | DECIMAL(12,2) | `subtotal + tax_amount` |
+| costo_envio | DECIMAL(12,2) | `shipping_fee` |
+| ventas_totales | DECIMAL(12,2) | `total_amount` (subtotal + IVA + envío) |
+
+#### marts_sales_products
+| Columna | Tipo | Descripción |
+|---|---|---|
+| order_item_id, order_id | BIGINT | Línea y pedido |
+| date_key, full_date, year, month, month_name | — | Fecha del pedido y sus partes |
+| product_key, product_name, product_category | — | Producto y su categoría |
+| channel_key, channel_name, province_key, province_name | — | Canal y provincia |
+| unidades_vendidas | INTEGER | `quantity` |
+| ventas_producto | DECIMAL(12,2) | `line_total`, sin IVA ni envío |
+
+#### marts_web_active_users
+| Columna | Tipo | Descripción |
+|---|---|---|
+| session_id | BIGINT | Sesión |
+| date_key, full_date, year, month, month_name | — | Fecha de inicio y sus partes |
+| customer_key, source_key, device_key | INTEGER | Claves; pueden ser `NULL` |
+| usuario_activo_id | VARCHAR | `CUST-<customer_key>` o `ANON-<session_id>` |
+| tipo_usuario | VARCHAR | `Identificado` o `Anónimo` |
+
+#### marts_nps
+| Columna | Tipo | Descripción |
+|---|---|---|
+| nps_id | BIGINT | Respuesta |
+| date_key, full_date, year, month, month_name | — | Fecha de la respuesta y sus partes |
+| customer_key, channel_key, channel_name | — | Cliente (puede ser `NULL`) y canal |
+| score | SMALLINT | Puntaje de 0 a 10 |
+| nps_category | VARCHAR | `Promotor`, `Pasivo` o `Detractor` |
+| puntos_nps | DECIMAL | 100, 0 o −100 |
+
+### Qué filtro mueve a cada mart
+
+| Filtro | `marts_orders` | `marts_sales_products` | `marts_web_active_users` | `marts_nps` |
+|---|---|---|---|---|
+| Fecha | Sí | Sí | Sí | Sí |
+| Canal | Sí | Sí | No | Sí |
+| Provincia | Sí | Sí | No | No |
+| Producto | No | Sí | No | No |
+
+- **Usuarios Activos** responde solo a la fecha: la sesión web no tiene canal ni provincia.
+- **NPS** no responde a la provincia: la encuesta no está asociada a un pedido ni a una dirección.
+- **Total Ventas y Ticket Promedio** no responden al filtro de producto, porque `marts_orders` tiene una fila por pedido y un pedido puede incluir varios productos.
+- **Ventas por producto** usa `ventas_producto` (`line_total`, sin IVA ni envío), por lo que no suma lo mismo que Total Ventas. La diferencia son el IVA y el envío.
+- **Anónimos:** cada sesión anónima cuenta como un usuario distinto, porque no hay forma de saber si dos sesiones son de la misma persona. Por eso la cifra de anónimos son, en realidad, sesiones.
+
+### Verificación de los marts
+
+```sql
+SELECT SUM(ventas_totales) AS total_ventas, COUNT(*) AS pedidos, AVG(ventas_totales) AS ticket
+FROM marts_orders;                                    -- 382.410.636 y 10.998 pedidos
+
+SELECT SUM(ventas_producto) FROM marts_sales_products; -- unos 309,9 millones
+
+SELECT COUNT(DISTINCT usuario_activo_id) FROM marts_web_active_users;
+
+SELECT ROUND(AVG(puntos_nps), 1) AS nps FROM marts_nps; -- 30,0
+```
+
+Los valores tienen que coincidir con las consultas de KPIs de la [sección 6](#6-consultas-clave-kpis).
+
+## 8. Dashboard y archivo binario
+
+El tablero se desarrolló en **Power BI Desktop** y está en [`dashboard/EcoBottle_Dashboard.pbix`](dashboard/EcoBottle_Dashboard.pbix). Toma como fuente los CSV de la carpeta `dw/`: los data marts y las dimensiones que usan los filtros.
+
+### Por qué hay un archivo binario en el repositorio
+
+El `.pbix` es el **entregable principal** del trabajo (el tablero que pide la consigna), y se versiona junto con el código para que quien corrige pueda abrirlo directamente. Es un archivo **binario**: un formato comprimido que guarda el diseño de las páginas, el modelo de datos y una copia de los datos cargados.
+
+### Cómo abrirlo con datos actualizados
+
+El `.pbix` guarda los datos tal como estaban al momento de guardarlo. Para regenerarlos:
+
+1. Ejecutar `python run_sql.py`, que reconstruye `dw/`.
+2. Abrir `dashboard/EcoBottle_Dashboard.pbix` en Power BI Desktop.
+3. Si la ruta de origen no existe en la computadora, ir a **Inicio → Transformar datos → Configuración del origen de datos** y apuntar a la carpeta `dw/` local.
+4. Hacer clic en **Actualizar**.
+
+### Nota sobre los decimales
+
+Los CSV de `dw/` usan **punto** como separador decimal. En Power BI las columnas de importes se importan con la configuración regional **Inglés (Estados Unidos)**. Si se importan con la configuración en español, el punto se interpreta como separador de miles y los importes quedan multiplicados por 100.
+
+## 9. Controles de calidad
 
 `sql/03_consultas.sql` incluye controles que se muestran al ejecutar `run_sql.py`:
 
@@ -353,7 +496,7 @@ ORDER BY d.year, d.month, ranking;
 | Conteo de nulos por columna en dimensiones | Solo `phone` tiene nulos (276) |
 | Ventas por provincia, canal y mes vs. KPI de Ventas | Suman el mismo total |
 
-## 8. Convención de commits
+## 10. Convención de commits
 
 Se usan *conventional commits*: `tipo: descripción`.
 
